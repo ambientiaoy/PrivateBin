@@ -1,5 +1,7 @@
 FROM php:apache
 
+ENV PORT ${HTTP_PORT:-8080}
+
 RUN apt-get update && apt-get install -y \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
@@ -13,5 +15,8 @@ RUN apt-get update && apt-get install -y \
 
     # We enable Apache's mod_rewrite
     a2enmod rewrite
+    sed -i "s/80/${PORT}/g" /etc/apache2/ports.conf
+
+EXPOSE $PORT
 
 COPY . .
