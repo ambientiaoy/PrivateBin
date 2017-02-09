@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     # We enable Apache's mod_rewrite
     a2enmod rewrite
     sed -i "s/80/${PORT}/g" /etc/apache2/ports.conf
+    sed -i "/ErrorLog/cErrorLog /dev/stderr" /etc/apache2/sites-available/000-default.conf
+    sed -i "/CustomLog/c#CustomLogfile removed" /etc/apache2/sites-available/000-default.conf
 
 EXPOSE $PORT
 
