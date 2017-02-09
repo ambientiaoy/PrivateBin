@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y \
     sed -i "s/80/${PORT}/g" /etc/apache2/ports.conf; \
     sed -i "/ErrorLog/cErrorLog /dev/stderr" /etc/apache2/sites-available/000-default.conf; \
     sed -i "/CustomLog/c#CustomLogfile removed" /etc/apache2/sites-available/000-default.conf; \
-    chmod 0777 /var/lock/apache2/
+    chmod 0777 /var/lock/apache2/; \
+    chmod 0777 /var/run/apache2/
 
 EXPOSE $PORT
 
