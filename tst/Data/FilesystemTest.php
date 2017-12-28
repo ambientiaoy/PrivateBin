@@ -8,16 +8,26 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
 
     private $_path;
 
+    private $_invalidPath;
+
     public function setUp()
     {
         /* Setup Routine */
-        $this->_path  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'privatebin_data';
-        $this->_model = Filesystem::getInstance(array('dir' => $this->_path));
+        $this->_path        = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'privatebin_data';
+        $this->_invalidPath = $this->_path . DIRECTORY_SEPARATOR . 'bar';
+        $this->_model       = Filesystem::getInstance(array('dir' => $this->_path));
+        if (!is_dir($this->_path)) {
+            mkdir($this->_path);
+        }
+        if (!is_dir($this->_invalidPath)) {
+            mkdir($this->_invalidPath);
+        }
     }
 
     public function tearDown()
     {
         /* Tear Down Routine */
+        chmod($this->_invalidPath, 0700);
         Helper::rmDir($this->_path);
     }
 
@@ -37,6 +47,7 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
         $this->assertFalse($this->_model->existsComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId()), 'comment does not yet exist');
         $this->assertTrue($this->_model->createComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId(), Helper::getComment()), 'store comment');
         $this->assertTrue($this->_model->existsComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId()), 'comment exists after storing it');
+        $this->assertFalse($this->_model->createComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId(), Helper::getComment()), 'unable to store the same comment twice');
         $comment           = json_decode(json_encode(Helper::getComment()));
         $comment->id       = Helper::getCommentId();
         $comment->parentid = Helper::getPasteId();
@@ -99,10 +110,6 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
         }
     }
 
-    /**
-     * @expectedException Exception
-     * @expectedExceptionCode 90
-     */
     public function testErrorDetection()
     {
         $this->_model->delete(Helper::getPasteId());
@@ -112,10 +119,6 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
         $this->assertFalse($this->_model->exists(Helper::getPasteId()), 'paste does still not exist');
     }
 
-    /**
-     * @expectedException Exception
-     * @expectedExceptionCode 90
-     */
     public function testCommentErrorDetection()
     {
         $this->_model->delete(Helper::getPasteId());
@@ -126,5 +129,50 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
         $this->assertFalse($this->_model->existsComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId()), 'comment does not yet exist');
         $this->assertFalse($this->_model->createComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId(), $comment), 'unable to store broken comment');
         $this->assertFalse($this->_model->existsComment(Helper::getPasteId(), Helper::getPasteId(), Helper::getCommentId()), 'comment does still not exist');
+    }
+
+    public function testOldFilesGetConverted()
+    {
+        // generate 10 (default purge batch size) pastes in the old format
+        $paste     = Helper::getPaste();
+        $comment   = Helper::getComment();
+        $commentid = Helper::getCommentId();
+        $ids       = array();
+        for ($i = 0, $max = 10; $i < $max; ++$i) {
+            // PHPs mt_rand only supports 32 bit or up 0x7fffffff on 64 bit systems to be precise :-/
+            $dataid = str_pad(dechex(mt_rand(0, mt_getrandmax())), 8, '0', STR_PAD_LEFT) .
+                str_pad(dechex(mt_rand(0, mt_getrandmax())), 8, '0', STR_PAD_LEFT);
+            $storagedir = $this->_path . DIRECTORY_SEPARATOR . substr($dataid, 0, 2) .
+                DIRECTORY_SEPARATOR . substr($dataid, 2, 2) . DIRECTORY_SEPARATOR;
+            $ids[$dataid] = $storagedir;
+
+            if (!is_dir($storagedir)) {
+                mkdir($storagedir, 0700, true);
+            }
+            file_put_contents($storagedir . $dataid, json_encode($paste));
+
+            $storagedir .= $dataid . '.discussion' . DIRECTORY_SEPARATOR;
+            if (!is_dir($storagedir)) {
+                mkdir($storagedir, 0700, true);
+            }
+            file_put_contents($storagedir . $dataid . '.' . $commentid . '.' . $dataid, json_encode($comment));
+        }
+        // check that all 10 pastes were converted after the purge
+        $this->_model->purge(10);
+        foreach ($ids as $dataid => $storagedir) {
+            $this->assertFileExists($storagedir . $dataid . '.php', "paste $dataid exists in new format");
+            $this->assertFileNotExists($storagedir . $dataid, "old format paste $dataid got removed");
+            $this->assertTrue($this->_model->exists($dataid), "paste $dataid exists");
+            $this->assertEquals($this->_model->read($dataid), json_decode(json_encode($paste)), "paste $dataid wasn't modified in the conversion");
+
+            $storagedir .= $dataid . '.discussion' . DIRECTORY_SEPARATOR;
+            $this->assertFileExists($storagedir . $dataid . '.' . $commentid . '.' . $dataid . '.php', "comment of $dataid exists in new format");
+            $this->assertFileNotExists($storagedir . $dataid . '.' . $commentid . '.' . $dataid, "old format comment of $dataid got removed");
+            $this->assertTrue($this->_model->existsComment($dataid, $dataid, $commentid), "comment in paste $dataid exists");
+            $comment           = json_decode(json_encode($comment));
+            $comment->id       = $commentid;
+            $comment->parentid = $dataid;
+            $this->assertEquals($this->_model->readComments($dataid), array($comment->meta->postdate => $comment), "comment of $dataid wasn't modified in the conversion");
+        }
     }
 }

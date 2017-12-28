@@ -12,10 +12,10 @@ if (!defined('PATH')) {
     define('PATH', '..' . DIRECTORY_SEPARATOR);
 }
 if (!defined('CONF')) {
-    define('CONF', PATH . 'cfg' . DIRECTORY_SEPARATOR . 'conf.ini');
+    define('CONF', PATH . 'cfg' . DIRECTORY_SEPARATOR . 'conf.php');
 }
-if (!is_file(CONF)) {
-    copy(CONF . '.sample', CONF);
+if (!defined('CONF_SAMPLE')) {
+    define('CONF_SAMPLE', PATH . 'cfg' . DIRECTORY_SEPARATOR . 'conf.sample.php');
 }
 
 require PATH . 'vendor/autoload.php';
@@ -172,22 +172,24 @@ class Helper
      */
     public static function rmDir($path)
     {
-        $path .= DIRECTORY_SEPARATOR;
-        $dir = dir($path);
-        while (false !== ($file = $dir->read())) {
-            if ($file != '.' && $file != '..') {
-                if (is_dir($path . $file)) {
-                    self::rmDir($path . $file);
-                } elseif (is_file($path . $file)) {
-                    if (!unlink($path . $file)) {
-                        throw new Exception('Error deleting file "' . $path . $file . '".');
+        if (is_dir($path)) {
+            $path .= DIRECTORY_SEPARATOR;
+            $dir = dir($path);
+            while (false !== ($file = $dir->read())) {
+                if ($file != '.' && $file != '..') {
+                    if (is_dir($path . $file)) {
+                        self::rmDir($path . $file);
+                    } elseif (is_file($path . $file)) {
+                        if (!unlink($path . $file)) {
+                            throw new Exception('Error deleting file "' . $path . $file . '".');
+                        }
                     }
                 }
             }
-        }
-        $dir->close();
-        if (!rmdir($path)) {
-            throw new Exception('Error deleting directory "' . $path . '".');
+            $dir->close();
+            if (!rmdir($path)) {
+                throw new Exception('Error deleting directory "' . $path . '".');
+            }
         }
     }
 
@@ -201,6 +203,9 @@ class Helper
         if (!is_file(CONF . '.bak') && is_file(CONF)) {
             rename(CONF, CONF . '.bak');
         }
+        if (!is_file(CONF_SAMPLE . '.bak') && is_file(CONF_SAMPLE)) {
+            copy(CONF_SAMPLE, CONF_SAMPLE . '.bak');
+        }
     }
 
     /**
@@ -212,6 +217,9 @@ class Helper
     {
         if (is_file(CONF . '.bak')) {
             rename(CONF . '.bak', CONF);
+        }
+        if (is_file(CONF_SAMPLE . '.bak')) {
+            rename(CONF_SAMPLE . '.bak', CONF_SAMPLE);
         }
     }
 

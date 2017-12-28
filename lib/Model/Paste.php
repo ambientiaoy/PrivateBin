@@ -7,7 +7,7 @@
  * @link      https://github.com/PrivateBin/PrivateBin
  * @copyright 2012 Sébastien SAUVAGE (sebsauvage.net)
  * @license   https://www.opensource.org/licenses/zlib-license.php The zlib/libpng License
- * @version   1.1
+ * @version   1.1.1
  */
 
 namespace PrivateBin\Model;
@@ -48,6 +48,11 @@ class Paste extends AbstractModel
             $data->meta->remaining_time = $data->meta->expire_date - time();
         }
 
+        // check if non-expired burn after reading paste needs to be deleted
+        if (property_exists($data->meta, 'burnafterreading') && $data->meta->burnafterreading && $this->_conf->getKey('instantburnafterreading')) {
+            $this->delete();
+        }
+
         // set formatter for for the view.
         if (!property_exists($data->meta, 'formatter')) {
             // support < 0.21 syntax highlighting
@@ -75,7 +80,6 @@ class Paste extends AbstractModel
      *
      * @access public
      * @throws Exception
-     * @return void
      */
     public function store()
     {
@@ -103,7 +107,6 @@ class Paste extends AbstractModel
      *
      * @access public
      * @throws Exception
-     * @return void
      */
     public function delete()
     {
@@ -183,7 +186,6 @@ class Paste extends AbstractModel
      * @access public
      * @param string $attachment
      * @throws Exception
-     * @return void
      */
     public function setAttachment($attachment)
     {
@@ -199,7 +201,6 @@ class Paste extends AbstractModel
      * @access public
      * @param string $attachmentname
      * @throws Exception
-     * @return void
      */
     public function setAttachmentName($attachmentname)
     {
@@ -214,7 +215,6 @@ class Paste extends AbstractModel
      *
      * @access public
      * @param string $expiration
-     * @return void
      */
     public function setExpiration($expiration)
     {
@@ -236,7 +236,6 @@ class Paste extends AbstractModel
      * @access public
      * @param string $burnafterreading
      * @throws Exception
-     * @return void
      */
     public function setBurnafterreading($burnafterreading = '1')
     {
@@ -257,7 +256,6 @@ class Paste extends AbstractModel
      * @access public
      * @param string $opendiscussion
      * @throws Exception
-     * @return void
      */
     public function setOpendiscussion($opendiscussion = '1')
     {
@@ -281,7 +279,6 @@ class Paste extends AbstractModel
      * @access public
      * @param string $format
      * @throws Exception
-     * @return void
      */
     public function setFormatter($format)
     {

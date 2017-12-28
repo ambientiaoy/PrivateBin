@@ -1,3 +1,4 @@
+;<?php http_response_code(403); /*
 ; config file for PrivateBin
 ;
 ; An explanation of each setting can be find online at https://github.com/PrivateBin/PrivateBin/wiki/Configuration.
@@ -20,6 +21,10 @@ fileupload = false
 
 ; preselect the burn-after-reading feature, defaults to false
 burnafterreadingselected = false
+
+; delete a burn after reading paste immediatly after it is first accessed from
+; the server and do not wait for a successful decryption
+instantburnafterreading = false
 
 ; which display mode to preselect by default, defaults to "plaintext"
 ; make sure the value exists in [formatter_options]

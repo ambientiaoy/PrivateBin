@@ -20,13 +20,12 @@ class ModelTest extends PHPUnit_Framework_TestCase
     public function setUp()
     {
         /* Setup Routine */
-        Helper::confRestore();
         $this->_path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'privatebin_data';
         if (!is_dir($this->_path)) {
             mkdir($this->_path);
         }
         ServerSalt::setPath($this->_path);
-        $options                   = parse_ini_file(CONF, true);
+        $options                   = parse_ini_file(CONF_SAMPLE, true);
         $options['purge']['limit'] = 0;
         $options['model']          = array(
             'class' => 'Database',
@@ -47,6 +46,7 @@ class ModelTest extends PHPUnit_Framework_TestCase
     public function tearDown()
     {
         /* Tear Down Routine */
+        unlink(CONF);
         Helper::confRestore();
         Helper::rmDir($this->_path);
     }
@@ -82,6 +82,7 @@ class ModelTest extends PHPUnit_Framework_TestCase
         $comment = $paste->getComment(Helper::getPasteId());
         $comment->setData($commentData['data']);
         $comment->setNickname($commentData['meta']['nickname']);
+        $comment->getParentId();
         $comment->store();
 
         $comment = $paste->getComment(Helper::getPasteId(), Helper::getCommentId());
@@ -191,12 +192,64 @@ class ModelTest extends PHPUnit_Framework_TestCase
 
     /**
      * @expectedException Exception
+     * @expectedExceptionCode 64
+     */
+    public function testInvalidPaste()
+    {
+        $this->_model->getPaste(Helper::getPasteId())->delete();
+        $paste = $this->_model->getPaste(Helper::getPasteId());
+        $paste->get();
+    }
+
+    /**
+     * @expectedException Exception
+     * @expectedExceptionCode 61
+     */
+    public function testInvalidData()
+    {
+        $paste = $this->_model->getPaste();
+        $paste->setData('');
+    }
+
+    /**
+     * @expectedException Exception
      * @expectedExceptionCode 62
      */
     public function testInvalidComment()
     {
         $paste = $this->_model->getPaste();
         $paste->getComment(Helper::getPasteId());
+    }
+
+    /**
+     * @expectedException Exception
+     * @expectedExceptionCode 67
+     */
+    public function testInvalidCommentDeletedPaste()
+    {
+        $pasteData = Helper::getPaste();
+        $paste     = $this->_model->getPaste(Helper::getPasteId());
+        $paste->setData($pasteData['data']);
+        $paste->store();
+
+        $comment = $paste->getComment(Helper::getPasteId());
+        $paste->delete();
+        $comment->store();
+    }
+
+    /**
+     * @expectedException Exception
+     * @expectedExceptionCode 68
+     */
+    public function testInvalidCommentData()
+    {
+        $pasteData = Helper::getPaste();
+        $paste     = $this->_model->getPaste(Helper::getPasteId());
+        $paste->setData($pasteData['data']);
+        $paste->store();
+
+        $comment = $paste->getComment(Helper::getPasteId());
+        $comment->store();
     }
 
     public function testExpiration()
@@ -274,7 +327,6 @@ class ModelTest extends PHPUnit_Framework_TestCase
             'pwd' => null,
             'opt' => array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION),
         );
-        Helper::confBackup();
         Helper::createIniFile(CONF, $options);
         $model = new Model(new Configuration);
 
@@ -329,7 +381,6 @@ class ModelTest extends PHPUnit_Framework_TestCase
             'pwd' => null,
             'opt' => array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION),
         );
-        Helper::confBackup();
         Helper::createIniFile(CONF, $options);
         $model = new Model(new Configuration);
 
@@ -367,7 +418,6 @@ class ModelTest extends PHPUnit_Framework_TestCase
             'pwd' => null,
             'opt' => array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION),
         );
-        Helper::confBackup();
         Helper::createIniFile(CONF, $options);
         $model = new Model(new Configuration);
 
